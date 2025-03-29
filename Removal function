@@ -1,0 +1,43 @@
+       void removeEdge(Node* building1, Node* building2)
+       {
+	       for (size_t i =0; i < building1 -> neighbors.size(); i++)
+		{
+		       if (building1 -> neighbors[i] == building2)
+		       {
+			       building1 -> neighbors.erase(building1 -> neighbors.begin() + i);
+			       building1 -> weights.erase(building1 -> weights.begin() + i);
+			       break;
+			       
+		       }
+		}
+
+	       for (size-_t i = 0; i < building2 -> neighbors.size(); i++)
+		{
+		       if (building2 -> neighbors[i] == building)
+		       {
+			       building2 -> neighbors.erase(building2 -> neighbors.begin() + i);
+			       building2 -> weights.erase(building2 -> weights.begin() + i);
+			       break;
+		       }
+	       }
+
+       void removeNode(string buildingname)
+       {
+	       if nametoNode.find(nodeName) == nametoNode.end())
+		       {
+		       cout << "Node" <<nodeName << " ' does not exist in the graph.\n";
+		       return;
+	               }
+	               Node* nodetoRemove = nametoNode[nodeName];
+
+	               nodes.erase(remove(nodes.begin(), nodes.end(), nodeToRemove), nodes.end())
+
+			       for (Node* node : node)
+			       {
+			       removeEdge(node, nodeToRmove);
+			       }
+			       nameToNode.erase(nodeName);
+	                       delete nodeToRemove;
+		       
+
+	
