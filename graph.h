@@ -172,4 +172,27 @@ public:
 			cout << endl;
 		}
 	}
+
+void removeNode(string nodeName)
+{
+    if (nameToNode.find(nodeName) == nameToNode.end())
+    {
+        cout << "Node '" << nodeName << "' does not exist in the graph.\n";
+        return;
+    }
+
+    Node* nodeToRemove = nameToNode[nodeName];
+
+    nodes.erase(remove(nodes.begin(), nodes.end(), nodeToRemove), nodes.end());
+
+    for (Node* node : nodes)
+    {
+        removeEdge(node, nodeToRemove);
+    }
+
+    nameToNode.erase(nodeName);
+
+    delete nodeToRemove;
+}
+
 };
