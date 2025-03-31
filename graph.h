@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <climits>
 #include <queue>
+#include <algorithm>
 using namespace::std;
 using std::string;
 using std::vector;
@@ -59,6 +60,21 @@ public:
 			building2->addNeighbor(building1, weight);
 		}
 	}
+
+    // Added this missing function to remove an edge between two nodes
+    void removeEdge(Node* fromNode, Node* toNode)
+    {
+        for (size_t i = 0; i < fromNode->neighbors.size(); i++)
+        {
+            if (fromNode->neighbors[i] == toNode)
+            {
+                // Remove the neighbor and its corresponding weight
+                fromNode->neighbors.erase(fromNode->neighbors.begin() + i);
+                fromNode->weights.erase(fromNode->weights.begin() + i);
+                break;
+            }
+        }
+    }
 
 	vector <string> getPath(Node* target)
 	{
