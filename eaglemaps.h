@@ -8,7 +8,7 @@ class EagleMaps {
 private:
     Graph campusMap;
     std::vector<std::string> buildingNames;
-    
+
     // Helper methods
     void initializeMap();
     void displayMenu();
@@ -17,7 +17,7 @@ private:
     int calculateWalkingTime(double distance);
     void addNewBuilding();
     void removeBuilding();
-    
+
 public:
     // Constructor and main methods
     EagleMaps();

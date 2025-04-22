@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <climits>
 #include <queue>
-#include <algorithm>
 using namespace::std;
 using std::string;
 using std::vector;
@@ -13,22 +12,25 @@ using std::vector;
 class Node
 {
 public:
-	string node_name;
-	vector <Node*> neighbors; //list of connected nodes
-	vector <double> weights; //distance between nodes
-	bool visited = false;
-	double distance = INT_MAX;// set distance to infinity
-	Node* prev = nullptr; // previous pinter
+    string node_name;
+    vector <Node*> neighbors; //list of connected nodes
+    vector <double> weights; //distance between nodes
+    vector <double> times;
+    bool visited = false;
+    double distance = numeric_limits<double>::infinity();// set distance to infinity
+    double time = numeric_limits<double>::infinity();
+    Node* prev = nullptr; // previous pinter
 
-	Node(string node_name) // constructor
-	{
-		this->node_name = node_name;
-	}
-	void addNeighbor(Node* neigbhor, double weight)// add a connection between nodes
-	{
-		neighbors.push_back(neigbhor);
-		weights.push_back(weight);
-	}
+    Node(string node_name) // constructor
+    {
+        this->node_name = node_name;
+    }
+    void addNeighbor(Node* neigbhor, double weight, double time)// add a connection between nodes
+    {
+        neighbors.push_back(neigbhor);
+        weights.push_back(weight);
+        times.push_back(time);
+    }
 };
 
 
@@ -36,7 +38,7 @@ public:
 class Graph
 {
 public:
-	vector <Node*> nodes;
+    vector <Node*> nodes;
     unordered_map<string, Node*> nameToNode;
     unordered_map<string, string> aliasMap;
 
@@ -49,19 +51,18 @@ public:
     {
         Node* newBuilding = new Node(building_name);
         nameToNode[building_name] = newBuilding;
-        nodes.push_back(newBuilding); 
+        nodes.push_back(newBuilding);
         return newBuilding;
     }
-	void addEdge(Node* building1, Node* building2, double weight, bool bidirectional = true)
-	{ //adds a bidirectional path between buildings
-		building1->addNeighbor(building2, weight);
-		if (bidirectional)
-		{
-			building2->addNeighbor(building1, weight);
-		}
-	}
+    void addEdge(Node* building1, Node* building2, double weight,double time, bool bidirectional = true)
+    { //adds a bidirectional path between buildings
+        building1->addNeighbor(building2, weight,time);
+        if (bidirectional)
+        {
+            building2->addNeighbor(building1, weight,time);
+        }
+    }
 
-    // Added this missing function to remove an edge between two nodes
     void removeEdge(Node* fromNode, Node* toNode)
     {
         for (size_t i = 0; i < fromNode->neighbors.size(); i++)
@@ -71,75 +72,116 @@ public:
                 // Remove the neighbor and its corresponding weight
                 fromNode->neighbors.erase(fromNode->neighbors.begin() + i);
                 fromNode->weights.erase(fromNode->weights.begin() + i);
+                fromNode->times.erase(fromNode->times.begin() + i);
                 break;
             }
         }
     }
 
-	vector <string> getPath(Node* target)
-	{
-		vector <string> path;
-		Node* current = target;
-		while (current != nullptr)
-		{
-			path.push_back(current->node_name);
-			current = current->prev;
-
-		}
-		reverse(path.begin(), path.end());
-		return path;
-	}
-
-    void dijkstra(Node* source)
+    void removeNode(string nodeName)
     {
-        // Reset the visited status and distances before running Dijkstra
-        for (Node* node : nodes) {
+        if (nameToNode.find(nodeName) == nameToNode.end())
+        {
+            cout << "Node '" << nodeName << "' does not exist in the graph.\n";
+            return;
+        }
+
+        Node* nodeToRemove = nameToNode[nodeName];
+
+        nodes.erase(remove(nodes.begin(), nodes.end(), nodeToRemove), nodes.end());
+
+        for (Node* node : nodes)
+        {
+            removeEdge(node, nodeToRemove);
+        }
+
+        nameToNode.erase(nodeName);
+
+        delete nodeToRemove;
+    }
+
+
+    vector <string> getPath(Node* target)
+    {
+        vector <string> path;
+        Node* current = target;
+        while (current != nullptr)
+        {
+            path.push_back(current->node_name);
+            current = current->prev;
+
+        }
+        reverse(path.begin(), path.end());
+        return path;
+    }
+
+    void dijkstra(Node* source, bool useTime = false)
+    {
+        for (Node* node : nodes)
+        {
             node->visited = false;
-            node->distance = INT_MAX;
+            node->distance = numeric_limits<double>::infinity();
+            node->time = numeric_limits<double>::infinity();
             node->prev = nullptr;
         }
 
-        source->distance = 0;
+        if (useTime) source->time = 0;
+        else source->distance = 0;
+
         while (true)
         {
             Node* current = nullptr;
-            double minimum_distance = INT_MAX;
-            // Find the unvisited node with the smallest distance
+            double minValue = numeric_limits<double>::infinity();
+
             for (Node* node : nodes)
             {
-                if (!node->visited && node->distance < minimum_distance)
+                double value = useTime ? node->time : node->distance;
+                if (!node->visited && value < minValue)
                 {
-                    minimum_distance = node->distance;
+                    minValue = value;
                     current = node;
                 }
             }
-            if (current == nullptr) { break; }
+
+            if (current == nullptr) break;
             current->visited = true;
 
-            
             for (size_t i = 0; i < current->neighbors.size(); i++)
             {
                 Node* neighbor = current->neighbors[i];
                 double weight = current->weights[i];
+                double travelTime = current->times[i];
 
-                if (neighbor->distance > current->distance + weight)
+                if (useTime)
                 {
-                    neighbor->distance = current->distance + weight;
-                    neighbor->prev = current;
+                    if (neighbor->time > current->time + travelTime)
+                    {
+                        neighbor->time = current->time + travelTime;
+                        neighbor->prev = current;
+                    }
+                }
+                else
+                {
+                    if (neighbor->distance > current->distance + weight)
+                    {
+                        neighbor->distance = current->distance + weight;
+                        neighbor->prev = current;
+                    }
                 }
             }
         }
     }
 
-    void planSchedule(vector<string> schedule, Graph& graph)
+
+    void planSchedule(vector<string> schedule, Graph& graph, bool useTime = false)
     {
         vector<Node*> schedule_nodes;
 
-        for (string building_name : schedule) 
+        for (string building_name : schedule)
         {
             if (aliasMap.find(building_name) != aliasMap.end())
             {
-                building_name = aliasMap[building_name]; 
+                building_name = aliasMap[building_name];
             }
             if (nameToNode.find(building_name) != nameToNode.end())
             {
@@ -150,21 +192,23 @@ public:
                 cout << "Error: Building '" << building_name << "' not found on campus map.\n";
                 return;
             }
-        } 
+        }
 
-        
         for (size_t i = 0; i < schedule_nodes.size() - 1; i++)
         {
             Node* current = schedule_nodes[i];
             Node* target = schedule_nodes[i + 1];
 
-            dijkstra(current);
+            dijkstra(current, useTime);
             vector<string> path = getPath(target);
 
-            // Output the shortest path with distance
+            double metric = useTime ? target->time : target->distance;
+            string unit = useTime ? "minutes" : "miles";
+
             cout << "Shortest path from " << current->node_name << " to " << target->node_name
-                << " is " << target->distance << " miles: ";
-            for (const string& building_name : path) 
+                << " is " << metric << " " << unit << ": ";
+
+            for (const string& building_name : path)
             {
                 cout << building_name << " ";
             }
@@ -176,39 +220,18 @@ public:
 
 
 
-	void displayGraph() 
-	{
-		for (Node* node : nodes) 
+
+    void displayGraph()
+    {
+        for (Node* node : nodes)
         {
-			cout << node->node_name << " is connected to: ";
-			for (size_t i = 0; i < node->neighbors.size(); i++) 
+            cout << node->node_name << " is connected to: ";
+            for (size_t i = 0; i < node->neighbors.size(); i++)
             {
-				cout << node->neighbors[i]->node_name << " (Distance: " << node->weights[i] << "), ";
-			}
-			cout << endl;
-		}
-	}
-
-void removeNode(string nodeName)
-{
-    if (nameToNode.find(nodeName) == nameToNode.end())
-    {
-        cout << "Node '" << nodeName << "' does not exist in the graph.\n";
-        return;
+                cout << node->neighbors[i]->node_name << " (Distance: " << node->weights[i] << "), " << "(Time: " << node->times[i] << ")";
+            }
+            cout << endl;
+        }
     }
-
-    Node* nodeToRemove = nameToNode[nodeName];
-
-    nodes.erase(remove(nodes.begin(), nodes.end(), nodeToRemove), nodes.end());
-
-    for (Node* node : nodes)
-    {
-        removeEdge(node, nodeToRemove);
-    }
-
-    nameToNode.erase(nodeName);
-
-    delete nodeToRemove;
-}
-
 };
+
