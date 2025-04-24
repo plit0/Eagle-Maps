@@ -17,6 +17,7 @@ private:
     int calculateWalkingTime(double distance);
     void addNewBuilding();
     void removeBuilding();
+    void addAliasesToBuilding();
 
 public:
     // Constructor and main methods
