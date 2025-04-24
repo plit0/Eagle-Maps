@@ -18,6 +18,7 @@ private:
     void addNewBuilding();
     void removeBuilding();
     void addAliasesToBuilding();
+    void printAliasesForBuilding();
 
 public:
     // Constructor and main methods
