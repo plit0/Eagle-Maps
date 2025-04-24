@@ -313,6 +313,27 @@ void EagleMaps::addNewBuilding() {
         return;
     }
 
+    // Create the new building
+    Building newBuilding(name);
+
+    // Add aliases to the new building
+    cout << "Add aliases for " << name << ". Enter one at a time. Type 'done' when finished:\n";
+    string alias;
+    while (true) {
+        cout << "Alias: ";
+        getline(cin, alias);
+
+        // Trim whitespace
+        alias.erase(0, alias.find_first_not_of(" \t\n\r"));
+        alias.erase(alias.find_last_not_of(" \t\n\r") + 1);
+
+        if (alias == "done") break;
+        if (!alias.empty()) {
+            newBuilding.addAlias(alias); // assumes addAlias() is implemented
+            cout << "Added alias: " << alias << "\n";
+        }
+    }
+    
     Node* newBuilding = campusMap.addNode(name);
     buildingNames.push_back(name);
 
