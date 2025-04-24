@@ -315,24 +315,7 @@ void EagleMaps::addNewBuilding() {
 
     // Create the new building
     Building newBuilding(name);
-
-    // Add aliases to the new building
-    cout << "Add aliases for " << name << ". Enter one at a time. Type 'done' when finished:\n";
-    string alias;
-    while (true) {
-        cout << "Alias: ";
-        getline(cin, alias);
-
-        // Trim whitespace
-        alias.erase(0, alias.find_first_not_of(" \t\n\r"));
-        alias.erase(alias.find_last_not_of(" \t\n\r") + 1);
-
-        if (alias == "done") break;
-        if (!alias.empty()) {
-            newBuilding.addAlias(alias); // assumes addAlias() is implemented
-            cout << "Added alias: " << alias << "\n";
-        }
-    }
+    addAliasesToBuilding(newBuilding);
     
     Node* newBuilding = campusMap.addNode(name);
     buildingNames.push_back(name);
@@ -362,6 +345,27 @@ void EagleMaps::addNewBuilding() {
     }
 
     cout << "Building '" << name << "' added successfully.\n";
+}
+
+void addAliasesToBuilding(Building& building) {
+    std::cout << "Add aliases for " << building.getName() << ". Enter one at a time. Type 'done' when finished:\n";
+
+    std::string alias;
+    while (true) {
+        std::cout << "Alias: ";
+        std::getline(std::cin, alias);
+
+        // Trim whitespace
+        alias.erase(0, alias.find_first_not_of(" \t\n\r"));
+        alias.erase(alias.find_last_not_of(" \t\n\r") + 1);
+
+        if (alias == "done") break;
+
+        if (!alias.empty()) {
+            building.addAlias(alias);  // make sure Building class has this method
+            std::cout << "Added alias: " << alias << "\n";
+        }
+    }
 }
 
 // Remove a building from the map
