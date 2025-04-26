@@ -1,2 +1,15 @@
-# Eagle-Maps
-A user-friendly on-campus navigation application designed to simplify the way students find their way around the University of Southern Mississippi.
+# Eagle Maps API Server
+
+## Project Description
+A campus mapping application with API functionality for finding paths, buildings, and navigation.
+
+## Prerequisites
+- CMake (version 3.10+)
+- C++17 compatible compiler
+
+## Building the Project
+```bash
+mkdir build
+cd build
+cmake ..
+make

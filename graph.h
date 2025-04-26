@@ -5,9 +5,22 @@
 #include <unordered_map>
 #include <climits>
 #include <queue>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
+#include <limits>
+
 using namespace::std;
 using std::string;
 using std::vector;
+using std::ifstream;
+using std::ofstream;
+using std::stringstream;
+using std::endl;
+using std::getline;
+using std::stod;
+using std::cout;
+using std::cin;
 
 class Node
 {
@@ -216,11 +229,6 @@ public:
         }
     }
 
-
-
-
-
-
     void displayGraph()
     {
         for (Node* node : nodes)
@@ -233,5 +241,192 @@ public:
             cout << endl;
         }
     }
-};
 
+    // Save the graph to a file
+    void saveToFile(const string& filename)
+    {
+        ofstream file(filename);
+        if (!file.is_open())
+        {
+            cout << "Error opening file for writing.\n";
+            return;
+        }
+
+        file << "# Nodes\n";
+        for (Node* node : nodes)
+        {
+            file << node->node_name << endl;
+        }
+
+        file << "\n# Edges\n";
+        for (Node* node : nodes)
+        {
+            for (size_t i = 0; i < node->neighbors.size(); ++i)
+            {
+                file << node->node_name << ", " 
+                     << node->neighbors[i]->node_name << ", " 
+                     << node->weights[i] << ", "
+                     << node->times[i] << endl; // Added time information
+            }
+        }
+
+        file << "\n# Aliases\n";
+        for (const auto& pair : aliasMap)
+        {
+            file << pair.first << ", " << pair.second << endl;
+        }
+
+        file.close();
+        cout << "Graph saved successfully to " << filename << endl;
+    }
+
+    // Load the graph from a file
+    void loadFromFile(const string& filename)
+    {
+        ifstream file(filename);
+        if (!file.is_open())
+        {
+            cout << "Error opening file for reading.\n";
+            return;
+        }
+
+        // Clear existing graph data
+        for (Node* node : nodes)
+        {
+            delete node;
+        }
+        nodes.clear();
+        nameToNode.clear();
+        aliasMap.clear();
+
+        string line;
+        enum Section { NONE, NODES, EDGES, ALIASES };
+        Section section = NONE;
+
+        while (getline(file, line))
+        {
+            if (line == "# Nodes")
+            {
+                section = NODES;
+                continue;
+            }
+            else if (line == "# Edges")
+            {
+                section = EDGES;
+                continue;
+            }
+            else if (line == "# Aliases")
+            {
+                section = ALIASES;
+                continue;
+            }
+            else if (line.empty())
+            {
+                continue;
+            }
+
+            switch (section)
+            {
+                case NODES:
+                {
+                    addNode(line);
+                    break;
+                }
+                case EDGES:
+                {
+                    stringstream ss(line);
+                    string building1, building2, weightStr, timeStr;
+                    getline(ss, building1, ',');
+                    getline(ss, building2, ',');
+                    getline(ss, weightStr, ',');
+                    getline(ss, timeStr);
+
+                    // Trim spaces
+                    building1.erase(0, building1.find_first_not_of(" "));
+                    building1.erase(building1.find_last_not_of(" ") + 1);
+                    building2.erase(0, building2.find_first_not_of(" "));
+                    building2.erase(building2.find_last_not_of(" ") + 1);
+                    weightStr.erase(0, weightStr.find_first_not_of(" "));
+                    weightStr.erase(weightStr.find_last_not_of(" ") + 1);
+                    timeStr.erase(0, timeStr.find_first_not_of(" "));
+                    timeStr.erase(timeStr.find_last_not_of(" ") + 1);
+
+                    double weight = stod(weightStr);
+                    double time = stod(timeStr);
+
+                    if (nameToNode.find(building1) != nameToNode.end() &&
+                        nameToNode.find(building2) != nameToNode.end())
+                    {
+                        addEdge(nameToNode[building1], nameToNode[building2], weight, time);
+                    }
+                    break;
+                }
+                case ALIASES:
+                {
+                    stringstream ss(line);
+                    string alias, actualName;
+                    getline(ss, alias, ',');
+                    getline(ss, actualName);
+
+                    alias.erase(0, alias.find_first_not_of(" "));
+                    alias.erase(alias.find_last_not_of(" ") + 1);
+                    actualName.erase(0, actualName.find_first_not_of(" "));
+                    actualName.erase(actualName.find_last_not_of(" ") + 1);
+
+                    addAlias(alias, actualName);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        file.close();
+        cout << "Graph loaded successfully from " << filename << endl;
+    }
+
+    // Print all aliases for a building
+    void printAliasesForBuilding(const string& buildingName)
+    {
+        cout << "Aliases for " << buildingName << ":\n";
+        for (const auto& pair : aliasMap)
+        {
+            if (pair.second == buildingName)
+            {
+                cout << " - " << pair.first << '\n';
+            }
+        }
+    }
+
+    // Add aliases to a building
+    void addAliasesToBuilding(const string& buildingName)
+    {
+        // Check if building exists
+        if (nameToNode.find(buildingName) == nameToNode.end())
+        {
+            cout << "Building '" << buildingName << "' does not exist.\n";
+            return;
+        }
+
+        cout << "Add aliases for " << buildingName << ". Enter one at a time. Type 'done' when finished:\n";
+
+        string alias;
+        cin.ignore();
+        while (true)
+        {
+            cout << "Alias: ";
+            getline(cin, alias);
+
+            // Trim whitespace
+            alias.erase(0, alias.find_first_not_of(" \t\n\r"));
+            alias.erase(alias.find_last_not_of(" \t\n\r") + 1);
+
+            if (alias == "done") break;
+            if (!alias.empty())
+            {
+                addAlias(alias, buildingName);
+                cout << "Added alias: " << alias << "\n";
+            }
+        }
+    }
+};

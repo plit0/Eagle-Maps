@@ -17,8 +17,8 @@ private:
     int calculateWalkingTime(double distance);
     void addNewBuilding();
     void removeBuilding();
-    void addAliasesToBuilding();
-    void printAliasesForBuilding();
+    void manageAliases(); // New method for managing aliases
+    void saveLoadMap();   // New method for saving/loading maps
 
 public:
     // Constructor and main methods
