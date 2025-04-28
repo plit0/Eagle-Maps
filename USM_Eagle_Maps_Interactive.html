@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USM Eagle Maps with Google Maps</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .header {
+            background-color: #012F5F;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .golden-eagle {
+            color: #FFD046;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .map-container {
+            position: relative;
+            height: 600px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        .controls {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .tab-buttons {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 15px;
+            background-color: #e9e9e9;
+            border: none;
+            cursor: pointer;
+            flex-grow: 1;
+            text-align: center;
+            font-weight: bold;
+        }
+        .tab-button.active {
+            background-color: #012F5F;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        select, button, input, textarea {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #012F5F;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #034694;
+        }
+        .result-panel {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #012F5F;
+            display: none;
+        }
+        #status-message {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #e9f5e9;
+            border-radius: 4px;
+        }
+        .infoWindow {
+            padding: 5px;
+            max-width: 200px;
+        }
+        .loading-indicator {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.7);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #012F5F;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><span class="golden-eagle">🦅</span> USM Eagle Maps <span class="golden-eagle">🦅</span></h1>
+        <p>Interactive Campus Navigation System</p>
+    </div>
+
+    <div class="container">
+        <div class="map-container">
+            <div id="map"></div>
+        </div>
+        
+        <div id="status-message">Loading map...</div>
+        
+        <div class="controls">
+            <div class="tab-buttons">
+                <button class="tab-button active" id="pathfinder-tab">Pathfinder</button>
+                <button class="tab-button" id="nearby-tab">Nearby Buildings</button>
+                <button class="tab-button" id="building-tab">Building Management</button>
+            </div>
+            
+            <div class="tab-content active" id="pathfinder-content">
+                <h2>Find Path</h2>
+                <label for="start-building">Starting Building:</label>
+                <select id="start-building"></select>
+                
+                <label for="end-building">Destination Building:</label>
+                <select id="end-building"></select>
+                
+                <button id="find-path-btn">Find Path</button>
+                
+                <div class="result-panel" id="path-result">
+                    <h3>Path Results</h3>
+                    <div id="distance-result"></div>
+                    <div id="time-result"></div>
+                    <div id="path-sequence"></div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="nearby-content">
+                <h2>Find Nearby Buildings</h2>
+                <label for="reference-building">From Building:</label>
+                <select id="reference-building"></select>
+                
+                <label for="max-distance">Maximum Distance (miles):</label>
+                <input type="number" id="max-distance" value="0.5" min="0.1" max="2.0" step="0.1">
+                
+                <button id="find-nearby-btn">Find Nearby</button>
+                
+                <div class="result-panel" id="nearby-result">
+                    <h3>Nearby Buildings</h3>
+                    <div id="nearby-list"></div>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="building-content">
+                <h2>Building Management</h2>
+                
+                <div class="tab-section">
+                    <h3>Add Building</h3>
+                    <label for="new-building-name">Building Name:</label>
+                    <input type="text" id="new-building-name" placeholder="Enter building name">
+                    
+                    <label for="new-building-lat">Latitude:</label>
+                    <input type="number" id="new-building-lat" placeholder="Latitude" step="0.000001">
+                    
+                    <label for="new-building-lng">Longitude:</label>
+                    <input type="number" id="new-building-lng" placeholder="Longitude" step="0.000001">
+                    
+                    <button id="get-current-location">Use Current Map Center</button>
+                    <button id="add-building-btn">Add Building</button>
+                </div>
+                
+                <div class="tab-section">
+                    <h3>Remove Building</h3>
+                    <label for="remove-building-select">Select Building:</label>
+                    <select id="remove-building-select">
+                        <option value="">Select a building</option>
+                    </select>
+                    
+                    <button id="remove-building-btn">Remove Building</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="loading" class="loading-indicator">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Google Maps JavaScript API -->
+    <script>
+        // API endpoint base URL - Connect to your C++ backend
+        const API_BASE_URL = 'http://localhost:8080';
+        
+        // Global variables
+        let map;
+        let markers = {};
+        let pathLines = [];
+        let infoWindows = {};
+        
+        // Building data with the precise GPS coordinates you provided
+        let buildingCoordinates = {
+            'Vann': { lat: 31.330997883590744, lng: -89.33224585331071 },
+            'Scott': { lat: 31.331779265052592, lng: -89.33239592541526 },
+            'Luckyday': { lat: 31.330972864653344, lng: -89.33305093585665 },
+            'CPN': { lat: 31.33266178950051, lng: -89.33282506947765 },
+            'Mccarty Residence Hall': { lat: 31.33136824261462, lng: -89.33008283061676 },
+            'Wilber': { lat: 31.327281266876422, lng: -89.32949677935909 },
+            'Hillcrest': { lat: 31.333660160874192, lng: -89.32995103485476 },
+            'Thad Cochran Center': { lat: 31.329809455055383, lng: -89.33282700844806 },
+            'Cook Library': { lat: 31.327752239613833, lng: -89.33433244633937 },
+            'MathZone': { lat: 31.327993068036097, lng: -89.33459859058367 },
+            'Liberal Arts Building': { lat: 31.326991707066078, lng: -89.33635996410632 },
+            'Asbury Hall': { lat: 31.328159665863353, lng: -89.33814133638154 },
+            'Lucas Administration Building': { lat: 31.326574358812522, lng: -89.33273247255107 },
+            'Elizabeth Harkins': { lat: 31.327000545222063, lng: -89.3375618035362 },
+            'Honor Business (HB)': { lat: 31.326649983310556, lng: -89.33014248259431 }
+        };
+        
+        // Storage for custom buildings
+        let customBuildings = {};
+        
+        // Initialize Google Maps
+        function initMap() {
+            // Center on USM campus
+            const usmCenter = { lat: 31.329, lng: -89.333 };
+            
+            // Create the map
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: usmCenter,
+                zoom: 16,
+                mapTypeId: google.maps.MapTypeId.ROADMAP,
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                    style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                    position: google.maps.ControlPosition.TOP_RIGHT
+                }
+            });
+            
+            // Add click listener to map for selecting locations when adding buildings
+            map.addListener('click', function(event) {
+                if (document.getElementById('building-tab').classList.contains('active')) {
+                    document.getElementById('new-building-lat').value = event.latLng.lat();
+                    document.getElementById('new-building-lng').value = event.latLng.lng();
+                }
+            });
+            
+            // Fetch buildings from your C++ backend API
+            fetchBuildingsFromAPI();
+            
+            // Initialize UI components
+            setupTabSwitching();
+            
+            // Add event listeners
+            document.getElementById('find-path-btn').addEventListener('click', findPathFromAPI);
+            document.getElementById('find-nearby-btn').addEventListener('click', findNearbyFromAPI);
+            document.getElementById('add-building-btn').addEventListener('click', addBuilding);
+            document.getElementById('remove-building-btn').addEventListener('click', removeBuilding);
+            document.getElementById('get-current-location').addEventListener('click', getCurrentMapCenter);
+        }
+        
+        // Fetch buildings data from the API
+        async function fetchBuildingsFromAPI() {
+            try {
+                showLoading();
+                updateStatus("Fetching buildings from API...");
+                
+                const response = await fetch(`${API_BASE_URL}/buildings`);
+                if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                updateStatus("Buildings data received successfully!");
+                
+                // Process the buildings data
+                processBuildingsData(data);
+                
+                // Populate dropdowns
+                populateDropdowns();
+                
+                hideLoading();
+            } catch (error) {
+                hideLoading();
+                updateStatus(`Error fetching buildings: ${error.message}`, true);
+                console.error("Error fetching buildings:", error);
+                
+                // Fallback: Use hardcoded building names as a demo if API is not available
+                useFallbackBuildingData();
+            }
+        }
+        
+        // Process buildings data and create markers
+        function processBuildingsData(data) {
+            // Clear any existing markers
+            for (const name in markers) {
+                markers[name].setMap(null);
+            }
+            
+            // Reset collections
+            markers = {};
+            infoWindows = {};
+            
+            // Process each building
+            data.forEach(building => {
+                const name = building.name || building;
+                
+                // Add the building to the map
+                addBuildingToMap(name);
+            });
+            
+            // Fit map to show all markers
+            fitMapToBounds();
+        }
+        
+        // Fallback function if API is not available
+        function useFallbackBuildingData() {
+            updateStatus("Using demo data instead of API connection", true);
+            
+            // Use the building names from our coordinates list
+            Object.keys(buildingCoordinates).forEach(name => {
+                addBuildingToMap(name);
+            });
+            
+            // Populate dropdowns
+            populateDropdowns();
+            
+            // Fit map to show all markers
+            fitMapToBounds();
+        }
+        
+        // Add a building to the map
+        function addBuildingToMap(name) {
+            // Skip if we don't have coordinates for this building
+            if (!buildingCoordinates[name]) {
+                console.warn(`No coordinates for building: ${name}`);
+                return;
+            }
+            
+            const position = buildingCoordinates[name];
+            
+            // Create marker
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                title: name,
+                animation: google.maps.Animation.DROP
+            });
+            
+            // Create info window
+            const infoWindow = new google.maps.InfoWindow({
+                content: `<div class="infoWindow"><strong>${name}</strong></div>`
+            });
+            
+            // Add click listener
+            marker.addListener("click", () => {
+                // Close any open info windows
+                for (const window of Object.values(infoWindows)) {
+                    window.close();
+                }
+                
+                // Open this info window
+                infoWindow.open(map, marker);
+                
+                // Select the building
+                selectBuilding(name);
+            });
+            
+            // Store marker and info window
+            markers[name] = marker;
+            infoWindows[name] = infoWindow;
+        }
+        
+        function fitMapToBounds() {
+            const bounds = new google.maps.LatLngBounds();
+            let markerCount = 0;
+            
+            for (const marker of Object.values(markers)) {
+                bounds.extend(marker.getPosition());
+                markerCount++;
+            }
+            
+            if (markerCount > 0) {
+                map.fitBounds(bounds);
+                if (markerCount === 1) {
+                    // If there's only one marker, zoom out a bit
+                    map.setZoom(16);
+                }
+            }
+        }
+        
+        function setupTabSwitching() {
+            const pathfinderTab = document.getElementById('pathfinder-tab');
+            const nearbyTab = document.getElementById('nearby-tab');
+            const buildingTab = document.getElementById('building-tab');
+            const pathfinderContent = document.getElementById('pathfinder-content');
+            const nearbyContent = document.getElementById('nearby-content');
+            const buildingContent = document.getElementById('building-content');
+            
+            pathfinderTab.addEventListener('click', function() {
+                pathfinderTab.classList.add('active');
+                nearbyTab.classList.remove('active');
+                buildingTab.classList.remove('active');
+                pathfinderContent.classList.add('active');
+                nearbyContent.classList.remove('active');
+                buildingContent.classList.remove('active');
+                clearResults();
+            });
+            
+            nearbyTab.addEventListener('click', function() {
+                nearbyTab.classList.add('active');
+                pathfinderTab.classList.remove('active');
+                buildingTab.classList.remove('active');
+                nearbyContent.classList.add('active');
+                pathfinderContent.classList.remove('active');
+                buildingContent.classList.remove('active');
+                clearResults();
+            });
+            
+            buildingTab.addEventListener('click', function() {
+                buildingTab.classList.add('active');
+                pathfinderTab.classList.remove('active');
+                nearbyTab.classList.remove('active');
+                buildingContent.classList.add('active');
+                pathfinderContent.classList.remove('active');
+                nearbyContent.classList.remove('active');
+                clearResults();
+                updateBuildingManagementUI();
+            });
+        }
+        
+        function populateDropdowns() {
+            const startSelect = document.getElementById('start-building');
+            const endSelect = document.getElementById('end-building');
+            const referenceSelect = document.getElementById('reference-building');
+            const removeSelect = document.getElementById('remove-building-select');
+            
+            // Clear existing options
+            startSelect.innerHTML = '<option value="">Select starting building</option>';
+            endSelect.innerHTML = '<option value="">Select destination building</option>';
+            referenceSelect.innerHTML = '<option value="">Select reference building</option>';
+            removeSelect.innerHTML = '<option value="">Select a building</option>';
+            
+            // Add building options from available markers
+            const buildingNames = Object.keys(markers).sort();
+            
+            for (const name of buildingNames) {
+                addOption(startSelect, name);
+                addOption(endSelect, name);
+                addOption(referenceSelect, name);
+                addOption(removeSelect, name);
+            }
+        }
+        
+        // Update the building management UI
+        function updateBuildingManagementUI() {
+            // Update the remove building dropdown
+            populateDropdowns();
+        }
+        
+        function addOption(select, value) {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            select.appendChild(option);
+        }
+        
+        function selectBuilding(name) {
+            // Highlight the marker
+            markers[name].setAnimation(google.maps.Animation.BOUNCE);
+            setTimeout(() => {
+                markers[name].setAnimation(null);
+            }, 1500);
+            
+            // Update dropdowns
+            const startSelect = document.getElementById('start-building');
+            if (!startSelect.value) {
+                startSelect.value = name;
+            } else {
+                const endSelect = document.getElementById('end-building');
+                endSelect.value = name;
+                findPathFromAPI();
+            }
+        }
+        
+        // Helper function to calculate distance between two points
+        function calculateDistance(point1, point2) {
+            return google.maps.geometry.spherical.computeDistanceBetween(
+                new google.maps.LatLng(point1.lat, point1.lng),
+                new google.maps.LatLng(point2.lat, point2.lng)
+            ) / 1609.34; // Convert to miles
+        }
+        
+        // Improved fallback function for finding paths when API is unavailable
+        function findPathFallback(startName, endName) {
+            updateStatus("API server unavailable. Using direct path calculation instead.", true);
+            
+            // Get the start and end positions
+            const startPos = buildingCoordinates[startName];
+            const endPos = buildingCoordinates[endName];
+            
+            if (!startPos || !endPos) {
+                updateStatus("Cannot calculate path: Building coordinates not found", true);
+                return;
+            }
+            
+            // Implement a simple client-side pathfinding algorithm
+            const path = [];
+            path.push(startName);
+            
+            // Only add intermediate nodes if they're "on the way" (simplified)
+            Object.keys(buildingCoordinates).forEach(building => {
+                if (building !== startName && building !== endName) {
+                    const buildingPos = buildingCoordinates[building];
+                    
+                    // Check if this building is roughly on the path from start to end
+                    const directDistance = calculateDistance(startPos, endPos);
+                    const detourDistance = calculateDistance(startPos, buildingPos) + 
+                                        calculateDistance(buildingPos, endPos);
+                    
+                    // If detour is not much longer than direct path, consider it on the way
+                    if (detourDistance < directDistance * 1.2) {
+                        // Only add if it's closer to start than end
+                        if (calculateDistance(startPos, buildingPos) < calculateDistance(startPos, endPos)) {
+                            path.push(building);
+                        }
+                    }
+                }
+            });
+            
+            // Sort intermediate buildings by distance from start
+            path.sort((a, b) => {
+                if (a === startName) return -1;
+                if (b === startName) return 1;
+                if (a === endName) return 1;
+                if (b === endName) return -1;
+                
+                const distA = calculateDistance(buildingCoordinates[startName], buildingCoordinates[a]);
+                const distB = calculateDistance(buildingCoordinates[startName], buildingCoordinates[b]);
+                return distA - distB;
+            });
+            
+            // Add end building if not already added
+            if (path[path.length - 1] !== endName) {
+                path.push(endName);
+            }
+            
+            // Display the path
+            displayPath(path);
+        }
+        
+        // Similar update for findNearbyFromAPI to include fallback
+        function findNearbyFallback(buildingName, maxDistance) {
+            updateStatus("API server unavailable. Using direct distance calculation instead.", true);
+            
+            const referencePos = buildingCoordinates[buildingName];
+            if (!referencePos) {
+                updateStatus("Cannot calculate nearby buildings: Building coordinates not found", true);
+                return;
+            }
+            
+            // Calculate distances to all other buildings
+            const nearbyBuildings = [];
+            Object.keys(buildingCoordinates).forEach(otherBuilding => {
+                if (otherBuilding !== buildingName) {
+                    const distance = calculateDistance(referencePos, buildingCoordinates[otherBuilding]);
+                    
+                    if (distance <= maxDistance) {
+                        nearbyBuildings.push({
+                            name: otherBuilding,
+                            distance: distance
+                        });
+                    }
+                }
+            });
+            
+            // Sort by distance
+            nearbyBuildings.sort((a, b) => a.distance - b.distance);
+            
+            // Display the results
+            displayNearbyBuildings(nearbyBuildings, buildingName);
+        }
+        
+        // Updated findPathFromAPI function to use the fallback
+        async function findPathFromAPI() {
+            clearResults();
+            
+            const startName = document.getElementById('start-building').value;
+            const endName = document.getElementById('end-building').value;
+            
+            if (!startName || !endName) {
+                updateStatus('Please select both start and destination buildings', true);
+                return;
+            }
+            
+            if (startName === endName) {
+                updateStatus('Please select different buildings for start and destination', true);
+                return;
+            }
+            
+            try {
+                showLoading();
+                updateStatus('Finding path...');
+                
+                // Call your C++ backend API for pathfinding
+                const response = await fetch(`${API_BASE_URL}/path?start=${encodeURIComponent(startName)}&end=${encodeURIComponent(endName)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.status}`);
+                }
+                
+                const path = await response.json();
+                
+                if (!path || path.length === 0) {
+                    hideLoading();
+                    updateStatus('No path found between the selected buildings', true);
+                    return;
+                }
+                
+                // Process the path data
+                displayPath(path);
+                
+                updateStatus('Path found successfully!');
+                hideLoading();
+                
+            } catch (error) {
+                hideLoading();
+                updateStatus(`Error finding path: ${error.message}`, true);
+                console.error('Error finding path:', error);
+                
+                // Use the fallback if fetch fails
+                if (error.message.includes('Failed to fetch')) {
+                    findPathFallback(startName, endName);
+                }
+            }
+        }
+        
+        // Updated findNearbyFromAPI function
+        async function findNearbyFromAPI() {
+            clearResults();
+            
+            const buildingName = document.getElementById('reference-building').value;
+            const maxDistance = parseFloat(document.getElementById('max-distance').value);
+            
+            if (!buildingName) {
+                updateStatus('Please select a reference building', true);
+                return;
+            }
+            
+            try {
+                showLoading();
+                updateStatus('Finding nearby buildings...');
+                
+                const response = await fetch(`${API_BASE_URL}/nearby?building=${encodeURIComponent(buildingName)}&distance=${maxDistance}`);
+                
+                if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.status}`);
+                }
+                
+                const nearbyBuildings = await response.json();
+                
+                if (!nearbyBuildings || nearbyBuildings.length === 0) {
+                    hideLoading();
+                    updateStatus('No buildings found within the specified distance', true);
+                    return;
+                }
+                
+                displayNearbyBuildings(nearbyBuildings, buildingName);
+                
+                updateStatus('Nearby buildings found successfully!');
+                hideLoading();
+                
+            } catch (error) {
+                hideLoading();
+                updateStatus(`Error finding nearby buildings: ${error.message}`, true);
+                console.error('Error finding nearby buildings:', error);
+                
+                // Use the fallback if fetch fails
+                if (error.message.includes('Failed to fetch')) {
+                    findNearbyFallback(buildingName, maxDistance);
+                }
+            }
+        }
+        
+        function displayPath(path) {
+            // Clear existing path lines
+            clearPathLines();
+            
+            // Reset marker icons
+            for (const name in markers) {
+                markers[name].setIcon(null);
+            }
+            
+            // Get building names from path (handling both object and string formats)
+            const buildingNames = path.map(b => b.name || b);
+            
+            // Draw lines between buildings in the path
+            for (let i = 0; i < buildingNames.length - 1; i++) {
+                const from = buildingNames[i];
+                const to = buildingNames[i + 1];
+                
+                // Skip if either building doesn't exist
+                if (!markers[from] || !markers[to]) continue;
+                
+                // Get positions
+                const fromPos = markers[from].getPosition();
+                const toPos = markers[to].getPosition();
+                
+                // Create a path line
+                const line = new google.maps.Polyline({
+                    path: [
+                        { lat: fromPos.lat(), lng: fromPos.lng() },
+                        { lat: toPos.lat(), lng: toPos.lng() }
+                    ],
+                    geodesic: true,
+                    strokeColor: '#FF5722',
+                    strokeOpacity: 0.8,
+                    strokeWeight: 4,
+                    icons: [{
+                        icon: {
+                            path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW
+                        },
+                        offset: '100%'
+                    }]
+                });
+                
+                line.setMap(map);
+                pathLines.push(line);
+            }
+            
+            // Highlight start and end markers
+            if (buildingNames.length > 0) {
+                // Start marker
+                if (markers[buildingNames[0]]) {
+                    markers[buildingNames[0]].setIcon({
+                        url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                    });
+                }
+                
+                // End marker
+                if (markers[buildingNames[buildingNames.length - 1]]) {
+                    markers[buildingNames[buildingNames.length - 1]].setIcon({
+                        url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                    });
+                }
+                
+                // Intermediate markers
+                for (let i = 1; i < buildingNames.length - 1; i++) {
+                    if (markers[buildingNames[i]]) {
+                        markers[buildingNames[i]].setIcon({
+                            url: 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png'
+                        });
+                    }
+                }
+            }
+            
+            // Display the results in the panel
+            const resultPanel = document.getElementById('path-result');
+            
+            // Calculate distance and time (estimated)
+            const totalDistance = estimateDistance(buildingNames);
+            const walkingTime = totalDistance * 20; // Estimate 20 minutes per mile
+            
+            document.getElementById('distance-result').textContent = `Distance: ${totalDistance.toFixed(2)} miles`;
+            document.getElementById('time-result').textContent = `Estimated walking time: ${walkingTime.toFixed(1)} minutes`;
+            
+            let pathText = '';
+            for (let i = 0; i < buildingNames.length; i++) {
+                pathText += buildingNames[i];
+                if (i < buildingNames.length - 1) {
+                    pathText += ' → ';
+                }
+            }
+            document.getElementById('path-sequence').textContent = pathText;
+            
+            resultPanel.style.display = 'block';
+            
+            // Zoom and pan the map to show the path
+            const bounds = new google.maps.LatLngBounds();
+            for (const building of buildingNames) {
+                if (markers[building]) {
+                    bounds.extend(markers[building].getPosition());
+                }
+            }
+            map.fitBounds(bounds, { padding: 100 });
+        }
+        
+        function displayNearbyBuildings(nearbyBuildings, referenceBuilding) {
+            // Reset marker icons
+            for (const name in markers) {
+                markers[name].setIcon(null);
+            }
+            
+            // Highlight the reference building
+            if (markers[referenceBuilding]) {
+                markers[referenceBuilding].setIcon({
+                    url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                });
+            }
+            
+            // Highlight nearby buildings
+            const bounds = new google.maps.LatLngBounds();
+            if (markers[referenceBuilding]) {
+                bounds.extend(markers[referenceBuilding].getPosition());
+            }
+            
+            // Display results
+            const resultPanel = document.getElementById('nearby-result');
+            const listContainer = document.getElementById('nearby-list');
+            
+            let html = '<table width="100%">';
+            html += '<tr><th align="left">Building</th><th align="right">Distance (miles)</th></tr>';
+            
+            nearbyBuildings.forEach(building => {
+                const name = building.name || building;
+                const distance = building.distance || 0.5; // Fallback if distance not provided
+                
+                html += `<tr>
+                    <td>${name}</td>
+                    <td align="right">${distance.toFixed(2)}</td>
+                </tr>`;
+                
+                // Highlight on map
+                if (markers[name]) {
+                    markers[name].setIcon({
+                        url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                    });
+                    bounds.extend(markers[name].getPosition());
+                }
+            });
+            
+            html += '</table>';
+            listContainer.innerHTML = html;
+            
+            resultPanel.style.display = 'block';
+            
+            // Zoom to show all relevant buildings
+            map.fitBounds(bounds, { padding: 100 });
+        }
+        
+        // Estimate distance between buildings (for visualization)
+        function estimateDistance(buildingNames) {
+            let totalDistance = 0;
+            
+            for (let i = 0; i < buildingNames.length - 1; i++) {
+                const from = buildingNames[i];
+                const to = buildingNames[i + 1];
+                
+                if (markers[from] && markers[to]) {
+                    const fromPos = markers[from].getPosition();
+                    const toPos = markers[to].getPosition();
+                    
+                    // Calculate distance in miles (approximate)
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(fromPos, toPos) / 1609.34;
+                    totalDistance += distance;
+                } else {
+                    // If we can't calculate, use a default estimate
+                    totalDistance += 0.2;
+                }
+            }
+            
+            return totalDistance;
+        }
+        
+        // Add a new building
+        function addBuilding() {
+            const name = document.getElementById('new-building-name').value.trim();
+            const lat = parseFloat(document.getElementById('new-building-lat').value);
+            const lng = parseFloat(document.getElementById('new-building-lng').value);
+            
+            if (!name) {
+                updateStatus('Please enter a building name', true);
+                return;
+            }
+            
+            if (isNaN(lat) || isNaN(lng)) {
+                updateStatus('Please enter valid coordinates or select a location on the map', true);
+                return;
+            }
+            
+            // Check if building with this name already exists
+            if (buildingCoordinates[name]) {
+                updateStatus(`Building "${name}" already exists`, true);
+                return;
+            }
+            
+            try {
+                showLoading();
+                updateStatus(`Adding building "${name}"...`);
+                
+                // Add to local data
+                buildingCoordinates[name] = { lat, lng };
+                customBuildings[name] = { lat, lng };
+                
+                // Add to map
+                addBuildingToMap(name);
+                
+                // Update dropdowns
+                populateDropdowns();
+                
+                // Clear form
+                document.getElementById('new-building-name').value = '';
+                document.getElementById('new-building-lat').value = '';
+                document.getElementById('new-building-lng').value = '';
+                
+                updateStatus(`Building "${name}" added successfully!`);
+                hideLoading();
+                
+                // Try to save to API if available
+                saveToAPI(name, lat, lng);
+                
+            } catch (error) {
+                hideLoading();
+                updateStatus(`Error adding building: ${error.message}`, true);
+                console.error('Error adding building:', error);
+            }
+        }
+        
+        // Remove a building
+        function removeBuilding() {
+            const name = document.getElementById('remove-building-select').value;
+            
+            if (!name) {
+                updateStatus('Please select a building to remove', true);
+                return;
+            }
+            
+            try {
+                showLoading();
+                updateStatus(`Removing building "${name}"...`);
+                
+                // Remove from map
+                if (markers[name]) {
+                    markers[name].setMap(null);
+                    delete markers[name];
+                }
+                
+                // Remove from infowindows
+                if (infoWindows[name]) {
+                    infoWindows[name].close();
+                    delete infoWindows[name];
+                }
+                
+                // Remove from data
+                delete buildingCoordinates[name];
+                delete customBuildings[name];
+                
+                // Update dropdowns
+                populateDropdowns();
+                
+                updateStatus(`Building "${name}" removed successfully!`);
+                hideLoading();
+                
+                // Try to delete from API if available
+                deleteFromAPI(name);
+                
+            } catch (error) {
+                hideLoading();
+                updateStatus(`Error removing building: ${error.message}`, true);
+                console.error('Error removing building:', error);
+            }
+        }
+        
+        // Get current map center coordinates
+        function getCurrentMapCenter() {
+            const center = map.getCenter();
+            document.getElementById('new-building-lat').value = center.lat();
+            document.getElementById('new-building-lng').value = center.lng();
+        }
+        
+        // Try to save building to API
+        async function saveToAPI(name, lat, lng) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/building`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name: name,
+                        lat: lat,
+                        lng: lng
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.status}`);
+                }
+                
+                console.log('Building saved to API successfully!');
+                
+            } catch (error) {
+                console.warn('Unable to save building to API:', error.message);
+                // This is non-critical since we've already added it locally
+            }
+        }
+        
+        // Try to delete building from API
+        async function deleteFromAPI(name) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/building?name=${encodeURIComponent(name)}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API request failed with status: ${response.status}`);
+                }
+                
+                console.log('Building deleted from API successfully!');
+                
+            } catch (error) {
+                console.warn('Unable to delete building from API:', error.message);
+                // This is non-critical since we've already removed it locally
+            }
+        }
+        
+        function clearPathLines() {
+            for (const line of pathLines) {
+                line.setMap(null);
+            }
+            pathLines = [];
+        }
+        
+        function clearResults() {
+            // Hide result panels
+            document.getElementById('path-result').style.display = 'none';
+            document.getElementById('nearby-result').style.display = 'none';
+            
+            // Clear path lines
+            clearPathLines();
+            
+            // Reset marker icons
+            for (const name in markers) {
+                markers[name].setIcon(null);
+            }
+            
+            // Close any open info windows
+            for (const window of Object.values(infoWindows)) {
+                window.close();
+            }
+        }
+        
+        function showLoading() {
+            document.getElementById('loading').style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        function updateStatus(message, isError = false) {
+            const statusElement = document.getElementById('status-message');
+            statusElement.textContent = message;
+            statusElement.style.backgroundColor = isError ? '#f8d7da' : '#e9f5e9';
+            statusElement.style.color = isError ? '#721c24' : '#155724';
+        }
+        
+        // Load the map when the page is ready
+        window.onload = function() {
+            // Check if Google Maps API is loaded
+            if (typeof google === 'undefined') {
+                updateStatus("ERROR: Google Maps API not loaded. Please check your API key and internet connection.", true);
+                return;
+            }
+            
+            initMap();
+        };
+    </script>
+    
+    <!-- Load Google Maps API with Geometry library -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBMD3H4h-rCIgLhp6Tx-wK7dKN1Pn3vupc&libraries=geometry"></script>
+</body>
+</html>
